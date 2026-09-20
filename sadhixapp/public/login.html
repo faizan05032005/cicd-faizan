@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sadhixapp - Login</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    background: #f4f5f7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+  }
+  .card {
+    background: #fff;
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    width: 100%;
+    max-width: 380px;
+  }
+  h1 { font-size: 20px; margin: 0 0 20px; text-align: center; }
+  .tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #ddd;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    background: #f9f9f9;
+    font-size: 14px;
+    user-select: none;
+  }
+  .tab.active { background: #2563eb; color: #fff; }
+  form { display: none; flex-direction: column; gap: 12px; }
+  form.active { display: flex; }
+  input {
+    padding: 10px 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  button {
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #1d4ed8; }
+  .msg { font-size: 13px; text-align: center; min-height: 18px; }
+  .msg.error { color: #dc2626; }
+  .msg.success { color: #16a34a; }
+  #welcome { display: none; text-align: center; }
+  #welcome button { margin-top: 16px; background: #6b7280; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Sadhixapp</h1>
+
+    <div id="authBox">
+      <div class="tabs">
+        <div class="tab active" data-tab="login">Login</div>
+        <div class="tab" data-tab="signup">Create Account</div>
+      </div>
+
+      <form id="loginForm" class="active">
+        <input type="email" id="loginEmail" placeholder="Email" required>
+        <input type="password" id="loginPassword" placeholder="Password" required>
+        <button type="submit">Log In</button>
+      </form>
+
+      <form id="signupForm">
+        <input type="email" id="signupEmail" placeholder="Email" required>
+        <input type="password" id="signupPassword" placeholder="Password (min 6 characters)" required minlength="6">
+        <button type="submit">Create Account</button>
+      </form>
+
+      <p class="msg" id="msg"></p>
+    </div>
+
+    <div id="welcome">
+      <p>Welcome back, <strong id="welcomeEmail"></strong> 👋</p>
+      <button id="logoutBtn">Log out</button>
+    </div>
+  </div>
+
+<script>
+  const authBox = document.getElementById('authBox');
+  const welcome = document.getElementById('welcome');
+  const welcomeEmail = document.getElementById('welcomeEmail');
+  const msg = document.getElementById('msg');
+  const tabs = document.querySelectorAll('.tab');
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      loginForm.classList.toggle('active', tab.dataset.tab === 'login');
+      signupForm.classList.toggle('active', tab.dataset.tab === 'signup');
+      setMsg('');
+    });
+  });
+
+  function setMsg(text, type = '') {
+    msg.textContent = text;
+    msg.className = 'msg ' + type;
+  }
+
+  function showWelcome(email) {
+    authBox.style.display = 'none';
+    welcome.style.display = 'block';
+    welcomeEmail.textContent = email;
+  }
+
+  function showAuth() {
+    authBox.style.display = 'block';
+    welcome.style.display = 'none';
+  }
+
+  // Check if already logged in when the page loads
+  async function checkSession() {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        showWelcome(data.user.email);
+      }
+    } catch (e) { /* not logged in, ignore */ }
+  }
+  checkSession();
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setMsg('');
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showWelcome(data.user.email);
+    } else {
+      setMsg(data.error || 'Login failed', 'error');
+    }
+  });
+
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    setMsg('');
+    const email = document.getElementById('signupEmail').value;
+    const password = document.getElementById('signupPassword').value;
+
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showWelcome(data.user.email);
+    } else {
+      setMsg(data.error || 'Signup failed', 'error');
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    showAuth();
+    loginForm.reset();
+    signupForm.reset();
+  });
+</script>
+</body>
+</html>
